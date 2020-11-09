@@ -3,12 +3,33 @@
 
 * General Settings
 
+** cl-lib
+   
 =cl-lib= adds a few things from common-lisp emulation, adding things like =cl-loop=
 
 #+begin_src emacs-lisp
 (use-package cl-lib)
 #+end_src
 
+** Garbage collector magic
+let's turn the GC threshold up a ton while initializing, making startup significantly faster.
+We're also adding a hook to reset the GC after emacs finished starting up.
+
+#+begin_src emacs-lisp
+(setq gc-cons-threshold most-positive-fixnum
+      gc-cons-percentage 0.6)
+(add-hook 'emacs-startup-hook
+  (lambda ()
+    (setq gc-cons-threshold 16777216
+          gc-cons-percentage 0.1)))
+         
+#+end_src
+
+to improve performance, the =gcmh= package turns of the GC until we are idle.
+
+#+begin_src emacs-lisp
+(use-package gcmh :config (gcmh-mode t))
+#+end_src
 ** Sane defaults
 
 Typing =:ensure t= everywhere is very bothersome so I'd rather *not* do that.
@@ -84,6 +105,7 @@ Restarting emacs from within emacs!
 
 #+BEGIN_SRC emacs-lisp
 (use-package restart-emacs
+    :defer t
 	:config
 	(setq restart-emacs-restore-frames t))
 #+END_SRC
@@ -120,7 +142,7 @@ Which key makes Emacs self documenting.
 ** VTerm
    
 #+begin_src emacs-lisp
-(use-package vterm)
+(use-package :defer t vterm)
 #+end_src
 
 * Looks
@@ -134,8 +156,11 @@ Which key makes Emacs self documenting.
 ** Font
 
 #+BEGIN_SRC emacs-lisp
-  (add-to-list 'default-frame-alist
-               '(font . "Iosevka Medium"))
+  (let ((selected-font (if (string= "garnix" (system-name))
+                          "xos4 Terminus"
+                          "Iosevka Medium")))
+    (add-to-list 'default-frame-alist
+                 `(font . ,selected-font)))
 #+END_SRC
 
 ** COMMENT Line numbers
@@ -155,14 +180,12 @@ Which key makes Emacs self documenting.
     (load-theme 'gruvbox-dark-medium t))
 #+END_SRC
 
-** Beacon
+** COMMENT Beacon
 
 Highlights the cursor each time I switch windows.
 
 #+BEGIN_SRC emacs-lisp
-  (use-package beacon
-    :config
-    (beacon-mode 1))
+  (use-package beacon :defer t :config (beacon-mode 1))
 #+END_SRC
 
 ** Fringe
@@ -252,6 +275,7 @@ Additionally, we make the top and bottom lines of the block smaller and darker.
 
  #+BEGIN_SRC emacs-lisp
    (use-package counsel
+     :defer t
      :config
      (ivy-mode)
 	 (setq ivy-re-builders-alist '((t . ivy--regex-fuzzy)))
@@ -270,8 +294,8 @@ Flx does fancy fuzzy matching with good sorting
  
 * Projectile
 #+begin_src emacs-lisp
-(use-package projectile :config (projectile-mode t))
-(use-package counsel-projectile :after projectile counsel)
+(use-package projectile :defer t :config (projectile-mode t))
+(use-package counsel-projectile :defer t :after projectile counsel)
 #+end_src
 
 
@@ -353,11 +377,10 @@ Emacs is lacks a good editor.
  #+BEGIN_SRC emacs-lisp
    (use-package evil-org
      :after org
+     :defer t
      :config
      (add-hook 'org-mode-hook 'evil-org-mode)
-     (add-hook 'evil-org-mode-hook
-		   (lambda ()
-		 (evil-org-set-key-theme)))
+     (add-hook 'evil-org-mode-hook 'evil-org-set-key-theme)
      (require 'evil-org-agenda)
      (evil-org-agenda-set-keys))
  #+END_SRC
@@ -380,6 +403,7 @@ Emacs is lacks a good editor.
  #+BEGIN_SRC emacs-lisp
  (use-package evil-surround
 	:after evil
+    :defer t
 	:config
 	(global-evil-surround-mode t))
  #+END_SRC
@@ -401,14 +425,14 @@ Undo tree is based.
 Jump through the code faster than ever before!
 
 #+BEGIN_SRC emacs-lisp
-  (use-package ace-jump-mode)
+  (use-package ace-jump-mode :defer t)
   (elk-leader-def "x" 'ace-jump-mode)
 #+END_SRC
 
 ** Multicursor
 Install the package and set up some binds!
 #+begin_src emacs-lisp
-  (use-package evil-mc :config (evil-mc-mode 1))
+  (use-package evil-mc :defer t :config (evil-mc-mode 1))
   
   (which-key-add-key-based-replacements "SPC d" "Multicursor")
   (elk-leader-def
@@ -429,13 +453,12 @@ Install the package and set up some binds!
 
 ** Magit
 #+BEGIN_SRC emacs-lisp
-  (use-package magit)
-  (use-package evil-magit)
+  (use-package magit :defer t)
+  (use-package evil-magit :after magit :defer t)
 
+  (elk-leader-def :prefix "SPC g" 
+    "s" '(magit-status :wk "status"))
   (which-key-add-key-based-replacements "SPC g" "Git shit")
-  (elk-leader-def
-	:prefix "SPC g"
-	"s" '(magit-status :wk "status"))
 #+END_SRC
 
 * Code stuff
@@ -456,8 +479,8 @@ let's also turn lambdas into _actual_ lambdas:
 ** Rainbow everything!
 because rainbows are fabulous!
 #+BEGIN_SRC emacs-lisp
-  (use-package rainbow-delimiters :config (rainbow-delimiters-mode t))
-  (use-package rainbow-blocks :config (rainbow-blocks-mode t))
+  (use-package rainbow-delimiters :defer t :config (rainbow-delimiters-mode t))
+  (use-package rainbow-blocks :defer t :config (rainbow-blocks-mode t))
 #+END_SRC
 ** Nerdcommenter
 #+BEGIN_SRC emacs-lisp
@@ -479,16 +502,16 @@ because rainbows are fabulous!
     :commands lsp)
 
   (use-package company)
-  (use-package lsp-ui :commands lsp-ui-mode)
-  (use-package lsp-ivy :commands lsp-ivy-workspace-symbol)
-  (use-package lsp-treemacs :commands lsp-treemacs-errors-list)
-  (use-package dap-mode)
+  ;; (use-package lsp-ui :commands lsp-ui-mode)
+  ;; (use-package lsp-ivy :commands lsp-ivy-workspace-symbol)
+  ;; (use-package lsp-treemacs :commands lsp-treemacs-errors-list)
+  ;; (use-package dap-mode)
   ;; (use-package dap-LANGUAGE) to load the dap adapter for your language
 #+end_src
 ** Rust
 
 #+begin_src emacs-lisp
-  (use-package rustic)
+  (use-package rustic :defer t)
 #+end_src
 
 ** Lisp
@@ -498,20 +521,23 @@ Install the plugin
 
 #+BEGIN_SRC emacs-lisp
   (use-package parinfer
-    :ensure t
+    :requires elisp-mode
+    :after evil
+    :defer t
+    :hook (emacs-lisp-mode . parinfer-mode)
     :init
     (progn
       (setq parinfer-lighters '("Parinfer:Indent" . "Parinfer:Paren"))
       (setq parinfer-auto-switch-indent-mode t)
-      (setq parinfer-extensions '(defaults pretty-parens evil smart-tab smart-yank))
-      (add-hook 'emacs-lisp-mode-hook #'parinfer-mode))) 
+      (setq parinfer-extensions '(defaults pretty-parens evil  smart-yank)) ;; smart-tab
+      (add-hook 'emacs-lisp-mode-hook #'parinfer-mode)))
 #+END_SRC
 
 and set up some keybinds!
 
 #+BEGIN_SRC emacs-lisp
-  (elk-leader-def
-	:prefix "SPC m" "-" '(parinfer-toggle-mode :wk "toggle parinfer mode"))
+(elk-leader-def :prefix "SPC m" 
+    "-" '(parinfer-toggle-mode :wk "toggle parinfer mode"))
 #+END_SRC
 
 
