@@ -20,9 +20,10 @@ We're also adding a hook to reset the GC after emacs finished starting up.
       gc-cons-percentage 0.6)
 (add-hook 'emacs-startup-hook
   (lambda ()
-    (setq gc-cons-threshold 16777216
+    (setq gc-cons-threshold 100000000
           gc-cons-percentage 0.1)))
-         
+
+(setq read-process-output-max (* 1024 1024))
 #+end_src
 
 to improve performance, the =gcmh= package turns of the GC until we are idle.
@@ -64,11 +65,13 @@ Nor do I need all the (Windows 2000-esque) UI.
   (menu-bar-mode -1)
 #+END_SRC
 
-When I fire up Emacs I want to be greeted with an empty =*scratch*= buffer, not the weird GNU screen.
+When I fire up Emacs I want to be greeted with an empty =*scratch*= buffer, 
+in org-mode.
 
 #+BEGIN_SRC emacs-lisp
   (setq inhibit-splash-screen t
-        initial-scratch-message "")
+        initial-scratch-message ""
+        initial-major-mode 'org-mode)
 #+END_SRC
 
 The whole yes or no prompt takes too much time to type out. y and n is much better.
@@ -105,7 +108,7 @@ Restarting emacs from within emacs!
 
 #+BEGIN_SRC emacs-lisp
 (use-package restart-emacs
-    :defer t
+    
 	:config
 	(setq restart-emacs-restore-frames t))
 #+END_SRC
@@ -142,7 +145,7 @@ Which key makes Emacs self documenting.
 ** VTerm
    
 #+begin_src emacs-lisp
-(use-package :defer t vterm)
+(use-package vterm )
 #+end_src
 
 * Looks
@@ -161,6 +164,25 @@ Which key makes Emacs self documenting.
                           "Iosevka Medium")))
     (add-to-list 'default-frame-alist
                  `(font . ,selected-font)))
+
+
+(set-face-attribute 'default nil
+                    :family "xos4 Terminus"
+                    :height 100
+                    :weight 'normal
+                    :width 'normal)
+
+(defun single-font-size ()
+  "Reset all faces to the height of the default face."
+  (dolist (f (face-list))
+    (when (not (equal 'default f))
+      (set-face-attribute f nil :height 1.0))))
+
+
+      
+
+
+(add-hook 'after-init-hook 'single-font-size)
 #+END_SRC
 
 ** COMMENT Line numbers
@@ -185,7 +207,7 @@ Which key makes Emacs self documenting.
 Highlights the cursor each time I switch windows.
 
 #+BEGIN_SRC emacs-lisp
-  (use-package beacon :defer t :config (beacon-mode 1))
+  (use-package beacon  :config (beacon-mode 1))
 #+END_SRC
 
 ** Fringe
@@ -275,7 +297,7 @@ Additionally, we make the top and bottom lines of the block smaller and darker.
 
  #+BEGIN_SRC emacs-lisp
    (use-package counsel
-     :defer t
+     
      :config
      (ivy-mode)
 	 (setq ivy-re-builders-alist '((t . ivy--regex-fuzzy)))
@@ -294,8 +316,8 @@ Flx does fancy fuzzy matching with good sorting
  
 * Projectile
 #+begin_src emacs-lisp
-(use-package projectile :defer t :config (projectile-mode t))
-(use-package counsel-projectile :defer t :after projectile counsel)
+(use-package projectile  :config (projectile-mode t))
+(use-package counsel-projectile  :after projectile counsel)
 #+end_src
 
 
@@ -323,26 +345,30 @@ fix the naming for which-key
       :prefix "SPC"
       :states '(normal motion)
       :keymaps 'override)
+
     (elk-leader-def
-      "a" 'org-agenda
-      "s" 'org-store-link
-      "t" '((lambda () (interactive) (org-capture nil "t")) :wk "org-capture whatever")
-      "f" '(counsel-find-file :wk "open a file")
-      "1" 'delete-other-windows
-      "0" 'delete-window
-      "p" '(:keymap projectile-command-map :wk "Project")
-      )
+	"a" 'org-agenda
+	"s" 'org-store-link
+	"t" '((lambda () (interactive) (org-capture nil "t")) :wk "org-capture whatever")
+	"f" '(counsel-find-file :wk "open a file")
+	"1" 'delete-other-windows
+	"0" 'delete-window
+	"p" '(:keymap projectile-command-map :wk "Project")
+	)
 
     (which-key-add-key-based-replacements "SPC y" "Emacs stuff")
     (elk-leader-def
-      :prefix "SPC y"
-      "c" '((lambda () (interactive) (find-file "~/.emacs.d/config.org")) :wk "open config.org")
-      "r" '((lambda () (interactive) (load-file "~/.emacs.d/init.el")) :wk "reload config.org")))
+	:prefix "SPC y"
+	"c" '((lambda () (interactive) (find-file "~/.emacs.d/config.org")) :wk "open config.org")
+	"r" '((lambda () (interactive) (load-file "~/.emacs.d/init.el")) :wk "reload config.org")))
 #+END_SRC
 
 * Window management
 #+BEGIN_SRC emacs-lisp
   (which-key-add-key-based-replacements "SPC b" "Window management")
+  (elk-leader-def
+    "w" '(evil-switch-to-windows-last-buffer :wk "last buffer"))
+
   (elk-leader-def
 	:prefix "SPC b"
 	"c" '(kill-buffer-and-window :wk "close window and buffer")
@@ -377,7 +403,7 @@ Emacs is lacks a good editor.
  #+BEGIN_SRC emacs-lisp
    (use-package evil-org
      :after org
-     :defer t
+     
      :config
      (add-hook 'org-mode-hook 'evil-org-mode)
      (add-hook 'evil-org-mode-hook 'evil-org-set-key-theme)
@@ -403,7 +429,7 @@ Emacs is lacks a good editor.
  #+BEGIN_SRC emacs-lisp
  (use-package evil-surround
 	:after evil
-    :defer t
+    
 	:config
 	(global-evil-surround-mode t))
  #+END_SRC
@@ -425,24 +451,25 @@ Undo tree is based.
 Jump through the code faster than ever before!
 
 #+BEGIN_SRC emacs-lisp
-  (use-package ace-jump-mode :defer t)
-  (elk-leader-def "x" 'ace-jump-mode)
+  (use-package ace-jump-mode :general (elk-leader-def "x" 'ace-jump-mode))
 #+END_SRC
 
 ** Multicursor
 Install the package and set up some binds!
 #+begin_src emacs-lisp
-  (use-package evil-mc :defer t :config (evil-mc-mode 1))
-  
+  (use-package evil-mc 
+     
+    :config (evil-mc-mode 1)
+    :general
+    (elk-leader-def
+	    :prefix "SPC d"
+	    "j" '(evil-mc-make-cursor-move-next-line :wk "cursor below")
+	    "u" '(evil-mc-undo-last-added-cursor  :wk "undo cursor")
+	    "d" '(evil-mc-undo-all-cursors  :wk "remove all cursors")
+	    "n" '(evil-mc-make-and-goto-next-match  :wk "next match")
+	    "m" '(evil-mc-skip-and-goto-next-match  :wk "skip and next match")
+	    "s" '(evil-mc-make-cursor-in-visual-selection-beg  :wk "cursor at selection")))
   (which-key-add-key-based-replacements "SPC d" "Multicursor")
-  (elk-leader-def
-	  :prefix "SPC d"
-	  "j" '(evil-mc-make-cursor-move-next-line :wk "cursor below")
-	  "u" '(evil-mc-undo-last-added-cursor  :wk "undo cursor")
-	  "d" '(evil-mc-undo-all-cursors  :wk "remove all cursors")
-	  "n" '(evil-mc-make-and-goto-next-match  :wk "next match")
-	  "m" '(evil-mc-skip-and-goto-next-match  :wk "skip and next match")
-	  "s" '(evil-mc-make-cursor-in-visual-selection-beg  :wk "cursor at selection"))
 #+end_src
 
 * Git integration
@@ -453,9 +480,8 @@ Install the package and set up some binds!
 
 ** Magit
 #+BEGIN_SRC emacs-lisp
-  (use-package magit :defer t)
-  (use-package evil-magit :after magit :defer t)
-
+  (use-package magit)
+  
   (elk-leader-def :prefix "SPC g" 
     "s" '(magit-status :wk "status"))
   (which-key-add-key-based-replacements "SPC g" "Git shit")
@@ -479,39 +505,92 @@ let's also turn lambdas into _actual_ lambdas:
 ** Rainbow everything!
 because rainbows are fabulous!
 #+BEGIN_SRC emacs-lisp
-  (use-package rainbow-delimiters :defer t :config (rainbow-delimiters-mode t))
-  (use-package rainbow-blocks :defer t :config (rainbow-blocks-mode t))
+  (use-package rainbow-delimiters  :config (rainbow-delimiters-mode t))
+  (use-package rainbow-blocks  :config (rainbow-blocks-mode t))
 #+END_SRC
 ** Nerdcommenter
 #+BEGIN_SRC emacs-lisp
-  (use-package evil-nerd-commenter)
+  (use-package evil-nerd-commenter
+    :general
+    (elk-leader-def
+	  :prefix "SPC c"
+	  "SPC" '(evilnc-comment-or-uncomment-lines :wk "toggle comment")
+	  "c" '(evilnc-copy-and-comment-lines :wk "copy and comment")))
   (which-key-add-key-based-replacements "SPC c" "Commenting")
-  (elk-leader-def
-	:prefix "SPC c"
-	"SPC" '(evilnc-comment-or-uncomment-lines :wk "toggle comment")
-	"c" '(evilnc-copy-and-comment-lines :wk "copy and comment"))
 #+END_SRC
 
 * Language support
+** Flycheck
+#+begin_src emacs-lisp
+(add-hook 'after-init-hook #'global-flycheck-mode)
+#+end_src
+
 ** LSP-mode
 #+begin_src emacs-lisp
   (use-package lsp-mode
-    :hook (;; replace XXX-mode with concrete major-mode(e. g. python-mode)
-           (rustic . lsp)
+    :hook ((rustic . lsp)
            (lsp-mode . lsp-enable-which-key-integration))
-    :commands lsp)
+    :commands lsp
+    :config
+    (setq lsp-completion-provider :capf
+          lsp-idle-delay 0.500
+          lsp-completion-mode 1
+          lsp-eldoc-render-all 0
+          lsp-enable-indentation 1
+          ))
 
-  (use-package company)
-  ;; (use-package lsp-ui :commands lsp-ui-mode)
-  ;; (use-package lsp-ivy :commands lsp-ivy-workspace-symbol)
-  ;; (use-package lsp-treemacs :commands lsp-treemacs-errors-list)
-  ;; (use-package dap-mode)
-  ;; (use-package dap-LANGUAGE) to load the dap adapter for your language
+
+
+  (general-def
+    :states '(insert normal motion)
+    "C-SPC" 'company-complete)
+  (elk-leader-def :prefix "SPC m"
+    "g" 'lsp-find-definition
+    "G" 'lsp-goto-type-definition
+    "i" 'lsp-goto-implementation
+    "n" 'lsp-rename
+    "f" 'lsp-format-buffer
+    "r" 'lsp-find-references
+    "v" 'lsp-execute-code-action
+    "V" 'lsp-execute-command
+    "d" 'lsp-ui-doc-show)
+
+#+end_src
+
+#+begin_src emacs-lisp
+
+
+    (use-package company
+      :config
+      (add-hook 'after-init-hook 'global-company-mode)
+      (setq company-idle-delay 0.1)
+      (setq company-minimum-prefix-length 1))
+
+    (use-package company-lsp :after company)
+
+  (add-hook 'lsp-ui-doc-frame-hook
+            (lambda (frame _w) (set-face-attribute 'default frame :font "xos4 Terminus" :height 100)))
+
+    ;; (use-package pos-tip
+    ;;   :config
+    ;;   (setq pos-tip-border-width 0
+    ;;         pos-tip-internal-border-width 0
+    ;;         pos-tip-background-color "#1d2021"))
+    ;; (use-package company-quickhelp :after '(pos-tip company))
+
+    ;; ;; (use-package lsp-ui :commands lsp-ui-mode)
+    ;; (use-package lsp-ivy :commands lsp-ivy-workspace-symbol)
+    ;; (use-package lsp-treemacs :commands lsp-treemacs-errors-list)
+    ;; (use-package dap-mode)
+    ;; (use-package dap-LANGUAGE) to load the dap adapter for your language
 #+end_src
 ** Rust
 
 #+begin_src emacs-lisp
-  (use-package rustic :defer t)
+  (use-package rustic
+    :config
+    (setq rust-format-on-save t)
+    (setq rustic-lsp-server 'rust-analyzer))
 #+end_src
 
 ** Lisp
@@ -521,9 +600,9 @@ Install the plugin
 
 #+BEGIN_SRC emacs-lisp
   (use-package parinfer
-    :requires elisp-mode
+    ;; :requires elisp-mode
     :after evil
-    :defer t
+    
     :hook (emacs-lisp-mode . parinfer-mode)
     :init
     (progn
@@ -546,8 +625,7 @@ Also, let's integrate it with out bar:
 - TODO Fix this
 
 #+BEGIN_SRC emacs-lisp
-  (defun update-parinfer-mode-status (x)
-    (setq global-mode-string (format "%s" x parinfer--mode)))
-  (add-hook 'parinfer-switch-mode-hook 'update-parinfer-mode-status)
+  ;; (defun update-parinfer-mode-status (x)
+  ;;   (setq global-mode-string (format "%s" x parinfer--mode)))
+  ;; (add-hook 'parinfer-switch-mode-hook 'update-parinfer-mode-status)
 #+END_SRC
-
