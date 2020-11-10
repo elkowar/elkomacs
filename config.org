@@ -212,7 +212,7 @@ Highlights the cursor each time I switch windows.
 
 ** Fringe
    
-Ugly.
+Fine, but reeeee
 
 #+BEGIN_SRC emacs-lisp
   (fringe-mode '(10 . 10))
@@ -568,8 +568,6 @@ because rainbows are fabulous!
 
     (use-package company-lsp :after company)
 
-  (add-hook 'lsp-ui-doc-frame-hook
-            (lambda (frame _w) (set-face-attribute 'default frame :font "xos4 Terminus" :height 100)))
 
     ;; (use-package pos-tip
     ;;   :config
@@ -629,3 +627,12 @@ Also, let's integrate it with out bar:
   ;;   (setq global-mode-string (format "%s" x parinfer--mode)))
   ;; (add-hook 'parinfer-switch-mode-hook 'update-parinfer-mode-status)
 #+END_SRC
+
+* I don't fucking know
+
+
+
+#+begin_src emacs-lisp
+(cl-loop for face in '(markdown-code-face) do
+    (set-face-attribute face nil :font "xos4 Terminus" :height 120))
+#+end_src
